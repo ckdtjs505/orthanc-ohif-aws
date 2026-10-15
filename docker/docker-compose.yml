@@ -1,0 +1,62 @@
+# Orthanc (PACS) + OHIF (viewer) behind an nginx reverse proxy.
+#   http://<host>/          -> OHIF viewer
+#   http://<host>/orthanc/  -> Orthanc REST / DICOMweb / Orthanc Explorer 2
+# nginx is the only container that publishes an HTTP port; it enforces basic auth.
+name: pacs
+
+services:
+  orthanc:
+    image: orthancteam/orthanc:24.10.3
+    restart: unless-stopped
+    environment:
+      ORTHANC__NAME: "mini-pacs"
+      # Auth is handled by nginx; Orthanc is only reachable on the internal network.
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+      ORTHANC__DICOM_AET: "MINIPACS"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      # BulkData URIs returned by DICOMweb must point at the proxied path.
+      ORTHANC__DICOM_WEB__PUBLIC_ROOT: "/orthanc/dicom-web/"
+      ORTHANC__DICOM_WEB__STUDIES_METADATA: "MainDicomTags"
+      ORTHANC__DICOM_WEB__SERIES_METADATA: "Full"
+      ORTHANC_EXPLORER_2_ENABLED: "true"
+      ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__ENABLE_OPEN_IN_OHIF_VIEWER_3: "true"
+      ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__OHIF_VIEWER_3_PUBLIC_ROOT: "/"
+      ORTHANC__STABLE_AGE: "10"
+      VERBOSE_STARTUP: "true"
+    volumes:
+      - orthanc-db:/var/lib/orthanc/db
+    ports:
+      # DICOM C-STORE (modalities / storescu). Keep closed in the security group unless needed.
+      - "${DICOM_PORT:-4242}:4242"
+    healthcheck:
+      test: ["CMD", "/probes/test-aliveness.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  ohif:
+    image: ohif/app:v3.9.2
+    restart: unless-stopped
+    environment:
+      PORT: "80"
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+      - ./ohif/nginx.conf.template:/usr/src/default.conf.template:ro
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      orthanc:
+        condition: service_healthy
+      ohif:
+        condition: service_started
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+
+volumes:
+  orthanc-db:

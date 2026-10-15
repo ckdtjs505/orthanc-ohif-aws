@@ -1,0 +1,35 @@
+#!/bin/bash
+# Bootstraps the Orthanc + OHIF stack on Amazon Linux 2023. Log: /var/log/pacs-bootstrap.log
+set -euo pipefail
+exec > >(tee -a /var/log/pacs-bootstrap.log) 2>&1
+
+dnf install -y docker openssl
+systemctl enable --now docker
+
+mkdir -p /usr/libexec/docker/cli-plugins
+curl -fsSL -o /usr/libexec/docker/cli-plugins/docker-compose \
+  "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64"
+chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+APP=/opt/pacs
+mkdir -p $APP/nginx $APP/ohif
+echo '${compose_b64}'     | base64 -d > $APP/docker-compose.yml
+echo '${nginx_conf_b64}'  | base64 -d > $APP/nginx/default.conf
+echo '${ohif_config_b64}' | base64 -d > $APP/ohif/app-config.js
+echo '${ohif_nginx_b64}'  | base64 -d > $APP/ohif/nginx.conf.template
+
+# Basic-auth credentials for nginx (apr1 hash; plaintext never written to disk).
+for i in $(seq 1 10); do
+  PW=$(aws ssm get-parameter --region ${region} --name '${password_param}' --with-decryption \
+        --query Parameter.Value --output text) && break
+  sleep 6   # IAM role propagation
+done
+printf '%s:%s\n' '${basic_auth_user}' "$(printf '%s' "$PW" | openssl passwd -apr1 -stdin)" > $APP/nginx/.htpasswd
+unset PW
+chmod 644 $APP/nginx/.htpasswd
+
+cd $APP
+docker compose pull
+docker compose up -d
+
+echo "bootstrap complete"

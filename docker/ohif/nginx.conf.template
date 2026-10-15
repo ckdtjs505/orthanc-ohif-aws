@@ -1,0 +1,10 @@
+# Replaces the OHIF image's built-in template, which also binds [::] and
+# crashes on hosts/containers without IPv6.
+server {
+  listen ${PORT} default_server;
+  location / {
+    root   /usr/share/nginx/html;
+    index  index.html index.htm;
+    try_files $uri $uri/ /index.html;
+  }
+}

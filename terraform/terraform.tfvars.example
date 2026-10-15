@@ -1,0 +1,9 @@
+region              = "ap-northeast-2"
+allowed_cidrs       = ["203.0.113.10/32"] # curl -s https://checkip.amazonaws.com
+basic_auth_user     = "admin"
+basic_auth_password = "change-me-to-something-long"
+
+# Optional
+# instance_type       = "t3.medium"
+# volume_size_gb      = 50
+# dicom_allowed_cidrs = ["203.0.113.10/32"]
