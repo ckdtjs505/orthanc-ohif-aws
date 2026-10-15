@@ -7,3 +7,4 @@ terraform/terraform.tfvars
 __pycache__/
 docker/.local-password
 sample-data/
+.venv/
