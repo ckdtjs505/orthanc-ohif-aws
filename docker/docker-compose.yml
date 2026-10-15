@@ -36,7 +36,7 @@ services:
       retries: 10
 
   ohif:
-    image: ohif/app:v3.9.2
+    image: ohif/app:v3.12.0
     restart: unless-stopped
     environment:
       PORT: "80"

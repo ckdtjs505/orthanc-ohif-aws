@@ -2,6 +2,10 @@
 # crashes on hosts/containers without IPv6.
 server {
   listen ${PORT} default_server;
+  # Compress on the fly; the image's pre-built .gz files are ignored so the
+  # mounted app-config.js is always what gets served.
+  gzip on;
+  gzip_types application/javascript text/css application/json application/wasm;
   location / {
     root   /usr/share/nginx/html;
     index  index.html index.htm;
