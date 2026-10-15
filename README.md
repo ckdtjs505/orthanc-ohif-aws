@@ -27,7 +27,7 @@ OHIF와 Orthanc가 같은 origin(`/`, `/orthanc/`) 아래에 있으므로 CORS �
 | `apply` 소요 시간 | 약 30초 (EC2 생성 15초) |
 | 부트스트랩 (Docker 설치 → 이미지 pull → 기동) | 수 분 (`/healthz` 응답으로 확인) |
 | 확인한 것 | 내 IP만 접속, basic auth 로그인, DICOMweb 업로드 40/40, OHIF 썸네일·슬라이스 렌더링 |
-| 정리 | 확인이 끝나면 `terraform destroy`로 전부 삭제 |
+| 정리 | 확인 후 `terraform destroy`로 리소스 8개 삭제 |
 
 주소창의 "주의 요함"은 HTTP라서 표시됩니다. HTTPS는 아래 [다음 단계](#다음-단계-아이디어)에 있습니다.
 
@@ -136,6 +136,7 @@ terraform destroy
 | OHIF 컨테이너가 `socket() [::]:80 failed (97: Address family not supported)`로 재시작 반복 | 공식 OHIF 이미지의 내장 nginx가 IPv6 주소도 listen. IPv6가 없는 호스트에서 기동 실패 | IPv4만 listen하는 설정(`docker/ohif/nginx.conf.template`)을 마운트해 교체 |
 | 결제 기본 설정에 "만료된 결제 방법" 경고 | 오래된 계정의 카드 유효기간 만료. 그대로 리소스를 만들면 청구 실패로 서비스가 중단될 수 있음 | `apply` 전에 새 카드를 기본 결제 수단으로 등록 |
 | 콘솔 로그인 후 "아직 프로젝트가 없습니다" 화면만 반복 | 새 로그인 화면의 계정(세션) 선택 단계. AWS 계정 세션이 아직 없음 | "세션 추가" → 루트 사용자로 로그인. "프로젝트 생성"은 누르지 않음 |
+| `terraform destroy`가 `No objects need to be destroyed` / `0 destroyed`로 끝났는데 서버는 그대로 | 저장소 루트에서 실행. Terraform은 현재 폴더의 설정과 `terraform.tfstate`만 보므로 지울 대상을 찾지 못함 | `terraform/` 폴더로 이동해 다시 실행 → `8 destroyed`. 삭제 후 `aws ec2 describe-instances`로 남은 인스턴스가 없는지 확인 |
 | 배포 후 갑자기 접속이 안 됨 | 모바일 회선 등에서 내 공인 IP가 바뀌어 보안그룹에 막힘 | `curl -s https://checkip.amazonaws.com`으로 확인 후 `allowed_cidrs` 수정 → `terraform apply` |
 
 ## 보안 주의
