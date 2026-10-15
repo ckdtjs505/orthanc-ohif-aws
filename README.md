@@ -29,19 +29,22 @@ OHIF와 Orthanc가 같은 origin(`/`, `/orthanc/`) 아래에 있으므로 CORS �
 | `scripts/make_sample_dicom.py` | 테스트용 합성 CT(구 팬텀) 생성 — 실제 환자 데이터 불필요 |
 | `scripts/upload.sh` | 폴더의 `.dcm`을 Orthanc에 업로드 |
 
-## 1. 로컬에서 먼저 실행 (선택)
+## 1. 로컬에서 실행 (Docker만 있으면 됨)
+
+필요한 것: Docker Desktop(실행 중), 디스크 여유 약 3GB(Orthanc 이미지가 큼).
+Windows는 **Git Bash** 또는 **WSL** 터미널에서 실행하세요.
 
 ```bash
-cd docker
-printf 'admin:%s\n' "$(printf 'testpass12345' | openssl passwd -apr1 -stdin)" > nginx/.htpasswd
-HTTP_PORT=8080 docker compose up -d
-
-pip install pydicom numpy
-python3 ../scripts/make_sample_dicom.py /tmp/sample
-PACS_URL=http://localhost:8080 PACS_PASSWORD=testpass12345 ../scripts/upload.sh /tmp/sample
+./scripts/run-local.sh          # 시작 → 주소와 로그인 정보 출력 (첫 실행은 이미지 다운로드로 몇 분 소요)
+./scripts/run-local.sh sample   # 합성 CT 40장 생성 후 업로드
+./scripts/run-local.sh down     # 중지 (데이터 유지)
+./scripts/run-local.sh reset    # 중지 + 저장된 DICOM 전부 삭제 + 비밀번호 재생성
 ```
 
-http://localhost:8080 (OHIF), http://localhost:8080/orthanc/ui/app/ (Orthanc Explorer 2)
+- OHIF: http://localhost:8080 · Orthanc Explorer 2: http://localhost:8080/orthanc/ui/app/
+- 로그인: `admin` / 자동 생성 비밀번호 (`docker/.local-password`에 저장). `PACS_PASSWORD=... ./scripts/run-local.sh`로 지정 가능
+- 8080이 사용 중이면 `HTTP_PORT=8090 ./scripts/run-local.sh`
+- 내 DICOM 파일은 OHIF의 **Upload** 버튼이나 Orthanc Explorer 2에서 드래그&드롭으로 올릴 수 있습니다
 
 ## 2. AWS에 배포
 

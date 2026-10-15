@@ -5,3 +5,5 @@ terraform/terraform.tfstate*
 terraform/terraform.tfvars
 *.dcm
 __pycache__/
+docker/.local-password
+sample-data/
