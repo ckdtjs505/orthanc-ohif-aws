@@ -15,7 +15,7 @@ resource "aws_security_group" "pacs" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "HTTP (nginx -> OHIF / Orthanc)"
+    description = "HTTP to nginx (OHIF and Orthanc)"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
