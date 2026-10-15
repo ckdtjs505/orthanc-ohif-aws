@@ -3,15 +3,10 @@
 EC2 한 대에 **Orthanc**(DICOM 서버, DICOMweb)와 **OHIF Viewer v3**를 Docker Compose로 올리는 미니 프로젝트입니다.
 인프라는 Terraform으로 만듭니다.
 
-```
- 브라우저 ──HTTP:80──▶ [EC2 · Amazon Linux 2023]
- (내 IP만 허용)          nginx (basic auth)
-                          ├─ /          ─▶ ohif     (OHIF Viewer 정적 앱)
-                          └─ /orthanc/  ─▶ orthanc  (REST, DICOMweb, Orthanc Explorer 2)
-                                                └─ docker volume → EBS gp3 (암호화)
- 관리자 접속: SSM Session Manager (SSH 키/22번 포트 없음)
- basic auth 비밀번호: SSM Parameter Store (SecureString)
-```
+![실행 흐름: GitHub → 맥(run-local.sh) 또는 AWS(Terraform → EC2) → 같은 Docker 스택](docs/diagram-flow.png)
+
+- 브라우저 → **nginx**(basic auth) → `/`는 **OHIF**, `/orthanc/`는 **Orthanc**(REST, DICOMweb, Orthanc Explorer 2)
+- 맥에서 띄우든 EC2에서 띄우든 **같은 `docker-compose.yml`**이 같은 스택을 실행합니다
 
 OHIF와 Orthanc가 같은 origin(`/`, `/orthanc/`) 아래에 있으므로 CORS 설정이 필요 없습니다.
 
@@ -127,6 +122,36 @@ terraform destroy
 
 대략적인 비용(서울 리전, 온디맨드): t3.small ≈ $0.026/h, gp3 30GB ≈ $2.9/월, 실행 중인 인스턴스에 붙은 EIP/퍼블릭 IPv4 ≈ $0.005/h.
 → 하루 종일 켜두면 약 $0.8. 실습이 끝나면 꼭 destroy 하세요.
+
+## AWS 구성 상세
+
+![AWS 배포 상세: 보안그룹, Elastic IP, EC2, IAM 역할, Parameter Store, SSM 접속](docs/diagram-aws-detail.png)
+
+- **보안그룹**: 80번 포트만, `allowed_cidrs`(내 IP)에서만 허용. SSH 22번은 열지 않음
+- **IAM 역할 + Parameter Store**: 로그인 비밀번호를 user data에 넣지 않고, 암호화 저장소에서 이 서버만 읽게 함
+- **SSM 접속**: SSH 키 없이 AWS 권한으로 접속, 접속 기록이 남음
+
+## 왜 AWS + Terraform인가
+
+![배포 방법 비교: 맥 로컬, Cafe24, AWS 콘솔, AWS + Terraform](docs/diagram-why-aws.png)
+
+| | 맥 로컬 | Cafe24 가상서버 | AWS + Terraform |
+|---|---|---|---|
+| 다른 사람이 접속 | 불가 | 가능 | 가능 (허용한 IP만) |
+| 보안 설정 | 필요 없음 | 방화벽 수작업 | 보안그룹·IAM·SSM이 코드에 포함 |
+| 다시 만들기·지우기 | 명령 한 줄 | 설정 순서를 기억해서 반복 | `apply` · `destroy` 각 한 줄 |
+| 비용 | 무료 | 월 요금제 | 몇 시간이면 1달러 미만 |
+
+## 작업 기록 (2026-10-15)
+
+![2026-10-15 작업 기록 타임라인](docs/diagram-2026-10-15.png)
+
+| 커밋 | 내용 |
+|---|---|
+| `0c96df7` | Docker Compose + Terraform 초기 구성, 로컬(클라우드 서버)에서 업로드·렌더링 검증 |
+| `7003539` | `run-local.sh` 한 줄 실행 스크립트 |
+| `8cc64ab` | 실제 `terraform plan`에서 드러난 보안그룹 설명 문자 오류 수정 |
+| `3413fd8` · `0be4675` | AWS 배포 결과 캡처, 트러블슈팅 기록 |
 
 ## 트러블슈팅 (실제로 겪은 문제)
 
